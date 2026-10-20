@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Controle do Remédio</title>
+<link href="https://fonts.googleapis.com/css2?family=Saira+Semi+Condensed:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    min-height: 100vh;
+    font-family: "Saira Semi Condensed", sans-serif;
+    display: flex;
+    justify-content: center;
+    padding: 40px 16px;
+    background: #888 url("fundo.jpg") center / cover fixed no-repeat;
+    filter: none;
+  }
+
+  .container {
+    width: 100%;
+    max-width: 760px;
+    background: #fff;
+    border-radius: 32px;
+    padding: 28px 24px 32px;
+    height: fit-content;
+    box-shadow: 0 10px 40px rgba(0,0,0,.35);
+  }
+
+  h1 {
+    text-align: center;
+    font-size: 2.2rem;
+    font-style: italic;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #ddd;
+  }
+
+  .topo {
+    display: flex;
+    gap: 12px;
+    align-items: end;
+    flex-wrap: wrap;
+    padding: 18px 0;
+    border-bottom: 1px solid #ddd;
+  }
+  .topo label { display: block; font-size: .85rem; font-weight: 600; margin-bottom: 4px; }
+
+  input[type="date"] {
+    font-family: inherit;
+    font-size: 1rem;
+    padding: 10px 16px;
+    border: none;
+    border-radius: 999px;
+    background: #f1f1f1;
+  }
+
+  button {
+    font-family: inherit;
+    font-size: 1rem;
+    cursor: pointer;
+    border-radius: 999px;
+    padding: 10px 20px;
+    border: 1px solid #000;
+    background: #fff;
+    color: #000;
+    transition: .2s;
+  }
+  button:hover { background: #000; color: #fff; }
+  button.principal { background: #000; color: #fff; }
+  button.principal:hover { background: #333; }
+
+  .progresso { padding: 18px 0 8px; }
+  .barra { height: 14px; background: #eee; border-radius: 999px; overflow: hidden; margin-top: 8px; }
+  .barra div { height: 100%; width: 0; background: #000; border-radius: 999px; transition: width .3s; }
+  #contador { font-weight: 600; }
+
+  .grade {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    gap: 10px;
+    margin-top: 14px;
+  }
+
+  .dia {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #f1f1f1;
+    border: 2px solid transparent;
+    border-radius: 18px;
+    padding: 10px 12px;
+    cursor: pointer;
+    user-select: none;
+    transition: .2s;
+  }
+  .dia:hover { background: #e6e6e6; }
+  .dia.hoje { border-color: #000; }
+  .dia.tomado { background: #000; color: #fff; }
+
+  .dia input {
+    appearance: none;
+    width: 24px; height: 24px;
+    border: 2px solid #000;
+    border-radius: 50%;
+    background: #fff;
+    cursor: pointer;
+    flex-shrink: 0;
+    display: grid;
+    place-content: center;
+  }
+  .dia input:checked { background: #fff; }
+  .dia input:checked::after { content: "✓"; font-size: 15px; font-weight: 700; color: #000; }
+
+  .info { line-height: 1.1; }
+  .info b { display: block; font-size: 1.05rem; }
+  .info small { font-size: .78rem; opacity: .75; }
+
+  .rodape { margin-top: 22px; display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <h1>REMÉDIO!</h1>
+
+  <div class="topo">
+    <div>
+      <label for="inicio">Data de início</label>
+      <input type="date" id="inicio">
+    </div>
+    <button class="principal" id="btnHoje">✓ Tomei hoje</button>
+  </div>
+
+  <div class="progresso">
+    <span id="contador">0 de 90 dias</span>
+    <div class="barra"><div id="barra"></div></div>
+  </div>
+
+  <div class="grade" id="grade"></div>
+
+  <div class="rodape">
+    <small>não esquece de salvar isanta</small>
+    <button id="btnLimpar">Limpar tudo</button>
+  </div>
+</div>
+
+<script>
+  const TOTAL = 90;
+  const KEY = "remedio90";
+  const grade = document.getElementById("grade");
+  const inicioEl = document.getElementById("inicio");
+
+  const hojeISO = () => {
+    const d = new Date();
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    return d.toISOString().slice(0, 10);
+  };
+
+  let estado = { inicio: hojeISO(), tomados: [] };
+  try { estado = JSON.parse(localStorage.getItem(KEY)) || estado; } catch (e) {}
+
+  const salvar = () => { try { localStorage.setItem(KEY, JSON.stringify(estado)); } catch (e) {} };
+
+  function dataDoDia(n) {
+    const [a, m, d] = estado.inicio.split("-").map(Number);
+    return new Date(a, m - 1, d + n);
+  }
+
+  function render() {
+    inicioEl.value = estado.inicio;
+    grade.innerHTML = "";
+    const hoje = hojeISO();
+
+    for (let i = 0; i < TOTAL; i++) {
+      const dt = dataDoDia(i);
+      const iso = new Date(dt.getTime() - dt.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+      const marcado = estado.tomados.includes(i);
+
+      const label = document.createElement("label");
+      label.className = "dia" + (marcado ? " tomado" : "") + (iso === hoje ? " hoje" : "");
+      label.innerHTML = `
+        <input type="checkbox" ${marcado ? "checked" : ""}>
+        <span class="info"><b>Dia ${i + 1}</b><small>${dt.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}</small></span>`;
+
+      label.querySelector("input").addEventListener("change", e => {
+        if (e.target.checked) estado.tomados.push(i);
+        else estado.tomados = estado.tomados.filter(x => x !== i);
+        salvar(); render();
+      });
+      grade.appendChild(label);
+    }
+
+    const qtd = estado.tomados.length;
+    document.getElementById("contador").textContent = `${qtd} de ${TOTAL} dias`;
+    document.getElementById("barra").style.width = (qtd / TOTAL * 100) + "%";
+  }
+
+  inicioEl.addEventListener("change", () => {
+    if (inicioEl.value) { estado.inicio = inicioEl.value; salvar(); render(); }
+  });
+
+  document.getElementById("btnHoje").addEventListener("click", () => {
+    const [a, m, d] = estado.inicio.split("-").map(Number);
+    const [ha, hm, hd] = hojeISO().split("-").map(Number);
+    const diff = Math.round((new Date(ha, hm - 1, hd) - new Date(a, m - 1, d)) / 86400000);
+    if (diff < 0 || diff >= TOTAL) { alert("Hoje está fora do período de 90 dias."); return; }
+    if (!estado.tomados.includes(diff)) estado.tomados.push(diff);
+    salvar(); render();
+  });
+
+  document.getElementById("btnLimpar").addEventListener("click", () => {
+    if (confirm("Apagar todas as marcações?")) {
+      estado = { inicio: hojeISO(), tomados: [] };
+      salvar(); render();
+    }
+  });
+
+  render();
+</script>
+</body>
+</html>
